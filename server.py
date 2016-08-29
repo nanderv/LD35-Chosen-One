@@ -268,8 +268,6 @@ class MapState():
             strz += "\r\n"
         for key, value in self.transitions.items():
             if value[1]: strz += key+". "+COLORS.UNDERLINE+value[0]+COLORS.WHITE+"\r\n\r\n"
-        for key, value in self.transitions.items():
-            if value[1]: strz += key+". "+COLORS.UNDERLINE+value[0]+COLORS.WHITE+"\r\n"
         return "\033[2J\033[0;0H"+self.state_name +"@{}:{}".format(xx,yy)+ strz
 
 
@@ -315,7 +313,7 @@ class BookState():
             strz=strz+COLORS.UNDERLINE+"\r\n2. Close Book"+COLORS.WHITE
         return "\033[2J\033[0;0H"+self.state_name + strz
 states = {}
-states["START"] = State("Start",
+states["START"] = State("START",
 " _____ _            _____ _                            _____            \r\n"+
 "|_   _| |          /  __ \ |                          |  _  |           \r\n"+
 "  | | | |__   ___  | /  \/ |__   ___  ___  ___ _ __   | | | |_ __   ___ \r\n"+
@@ -331,6 +329,7 @@ states["CONTROLS"].add_t("1","Start Game using WASD (Modern)",True,"MAP")
 states["CONTROLS"].add_t("2","Start Game using NESW (Old-School)",True,"MAP")
 
 states["MAP"] = MapState("MAP","Escape from the maze.")
+states["MAP"].add_t("?","Controls", True, "CONTROLS")
 states["C1"] = State("C1", "I.\r\n\r\nMy name is Theseus.\r\n I am {}the chosen one{}. I'm destined to either kill the Minotaur roaming in this labyrinth, or be killed by it.".format(COLORS.BOLD,COLORS.WHITE))
 states["C1"].add_t("1","CONTINUE",True,"BOOKEXPLAIN")
 states["C1"].story_id=0
@@ -394,7 +393,7 @@ states["MONSTER5"] = State("MONSTER5",
         'HELLO'+COLORS.WHITE+'"')
 states["MONSTER5"].add_t("1","Hello?",True,"MONSTER6")
 states["MONSTER5"].story_id=5
-
+states["NONE"] = State("NONE","Sorry, the game fully crashed. Please reload")
 states["MONSTER6"] = State("MONSTER6", "VI.\r\n\r\nThe Minotaur continued:"+ 
 '\r\n"I\'m sorry if I frightened you, GRAWR means hello in my language."')
 states["MONSTER6"].add_t("1",'I replied : "I could have died of fear"',True,"MONSTER7A")
@@ -452,7 +451,7 @@ class SecondaryServerSocket(asyncore.dispatcher_with_send):
     def handle_read(self):
         receivedData = self.recv(8192)
         if receivedData: 
-            if hasattr(states[self.state],"story_id"):
+            if hasattr(states.get(self.state,"NONE"),"story_id"):
                 self.story[states[self.state].story_id] = states[self.state].state_name
             
             olen = receivedData.__len__()
@@ -463,29 +462,29 @@ class SecondaryServerSocket(asyncore.dispatcher_with_send):
                 if olen ==0:
                     self.buff = self.buff + receivedData
                 else:
-                    res = states[self.state].handle_input(receivedData,self.x,self.y,self)
+                    res = states.get(self.state,"NONE").handle_input(receivedData,self.x,self.y,self)
                     self.state=res[1]
                     if res.__len__()>2:
                         self.x = res[2]
                         self.y = res[3]
                     if res[0]:
-                        self.send(states[self.state].print_self(self.x,self.y,self))
+                        self.send(states.get(self.state,"NONE").print_self(self.x,self.y,self))
                     else:
-                        self.send(states[self.state].print_self(self.x,self.y,self))
+                        self.send(states.get(self.state,"NONE").print_self(self.x,self.y,self))
 
                         self.send("<"+receivedData + "> was not understood\r\n")
             elif self.buff != "":
 
-                res = states[self.state].handle_input(self.buff,self.x,self.y,self)
+                res = states.get(self.state,"NONE").handle_input(self.buff,self.x,self.y,self)
                 self.state=res[1]
                 if res.__len__()>2:
                     self.x = res[2]
                     self.y = res[3]
                 if res[0]:
-                    self.send(states[self.state].print_self(self.x,self.y,self))
+                    self.send(states.get(self.state,"NONE").print_self(self.x,self.y,self))
                 else:
 
-                    self.send(states[self.state].print_self(self.x,self.y,self))
+                    self.send(states.get(self.state,"NONE").print_self(self.x,self.y,self))
 
                     self.send("<"+self.buff + "> was not understood.\r\n")
                 self.buff = ""
